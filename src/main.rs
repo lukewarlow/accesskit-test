@@ -8,7 +8,7 @@
 use std::num::NonZeroU32;
 use std::sync::Arc;
 
-use egui_winit::winit;
+use egui_winit::{accesskit_winit, winit};
 use winit::raw_window_handle::HasWindowHandle as _;
 
 /// The majority of `GlutinWindowContext` is taken from `eframe`
@@ -160,6 +160,13 @@ impl GlutinWindowContext {
 #[derive(Debug)]
 pub enum UserEvent {
     Redraw(std::time::Duration),
+    Accessibility(accesskit_winit::Event),
+}
+
+impl From<accesskit_winit::Event> for UserEvent {
+    fn from(value: accesskit_winit::Event) -> Self {
+        Self::Accessibility(value)
+    }
 }
 
 struct GlowApp {
@@ -188,9 +195,11 @@ impl winit::application::ApplicationHandler<UserEvent> for GlowApp {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
         let (gl_window, gl) = create_display(event_loop);
         let gl = std::sync::Arc::new(gl);
+        let mut egui_glow = egui_glow::EguiGlow::new(event_loop, gl.clone(), None, None, true);
+        egui_glow
+            .egui_winit
+            .init_accesskit(event_loop, gl_window.window(), self.proxy.clone());
         gl_window.window().set_visible(true);
-
-        let egui_glow = egui_glow::EguiGlow::new(event_loop, gl.clone(), None, None, true);
 
         let event_loop_proxy = egui::mutex::Mutex::new(self.proxy.clone());
         egui_glow
@@ -299,6 +308,13 @@ impl winit::application::ApplicationHandler<UserEvent> for GlowApp {
     fn user_event(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop, event: UserEvent) {
         match event {
             UserEvent::Redraw(delay) => self.repaint_delay = delay,
+            UserEvent::Accessibility(event) => match event.window_event {
+                accesskit_winit::WindowEvent::InitialTreeRequested => {
+                    self.egui_glow.as_ref().unwrap().egui_ctx.enable_accesskit();
+                }
+                accesskit_winit::WindowEvent::ActionRequested(action_request) => todo!(),
+                accesskit_winit::WindowEvent::AccessibilityDeactivated => todo!(),
+            },
         }
     }
 
