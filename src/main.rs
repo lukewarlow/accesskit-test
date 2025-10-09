@@ -8,6 +8,7 @@
 use std::num::NonZeroU32;
 use std::sync::Arc;
 
+use egui::accesskit::{Node, Role};
 use egui_winit::{accesskit_winit, winit};
 use winit::raw_window_handle::HasWindowHandle as _;
 
@@ -234,6 +235,16 @@ impl winit::application::ApplicationHandler<UserEvent> for GlowApp {
                         }
 
                         ui.color_edit_button_rgb(self.clear_color.as_mut().try_into().unwrap());
+                    });
+
+                    egui::CentralPanel::default().show(egui_ctx, |ui| {
+                        egui_ctx.accesskit_node_builder(ui.id(), |node| {
+                            dbg!(node.role());
+                            node.set_role(Role::Group);
+                            let mut child = Node::default();
+                            child.set_role(Role::Switch);
+                            node.push_child(item);
+                        });
                     });
                 },
             );
