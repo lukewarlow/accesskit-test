@@ -241,9 +241,15 @@ impl winit::application::ApplicationHandler<UserEvent> for GlowApp {
                         egui_ctx.accesskit_node_builder(ui.id(), |node| {
                             dbg!(node.role());
                             node.set_role(Role::Group);
+
                             let mut child = Node::default();
                             child.set_role(Role::Switch);
-                            node.push_child(item);
+                            let child_id = ui.id().with(1);
+                            node.push_child(child_id.value().into());
+                            // egui_ctx.viewport_mut(|viewport| {
+                            //     viewport.this_pass.accesskit_state.as_mut().unwrap().nodes
+                            //         .insert(child_id, child);
+                            // });
                         });
                     });
                 },
