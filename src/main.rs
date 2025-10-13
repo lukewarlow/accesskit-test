@@ -5,7 +5,7 @@
 #![allow(clippy::undocumented_unsafe_blocks)]
 #![allow(unsafe_code)]
 
-use std::num::NonZeroU32;
+use std::{backtrace::Backtrace, num::NonZeroU32};
 use std::sync::Arc;
 
 use egui::accesskit::{Node, Role};
@@ -245,11 +245,12 @@ impl winit::application::ApplicationHandler<UserEvent> for GlowApp {
                             let mut child = Node::default();
                             child.set_role(Role::Switch);
                             let child_id = ui.id().with(1);
-                            node.push_child(child_id.value().into());
                             // egui_ctx.viewport_mut(|viewport| {
                             //     viewport.this_pass.accesskit_state.as_mut().unwrap().nodes
                             //         .insert(child_id, child);
                             // });
+                            // node.push_child(child_id.value().into());
+                            // let _ = dbg!(Backtrace::force_capture());
                         });
                     });
                 },
