@@ -239,23 +239,18 @@ impl winit::application::ApplicationHandler<UserEvent> for GlowApp {
                     });
 
                     egui::CentralPanel::default().show(egui_ctx, |ui| {
-                        ui.add(|ui: &mut Ui| {
-                            let desired_size = ui.available_size();
-                            let response = ui.allocate_response(desired_size, Sense::all());
-                            egui_ctx.accesskit_node_builder(response.id, |node| {
-                                node.set_role(Role::Group);
-                            });
-                            egui_ctx.with_accessibility_parent(response.id, || {
-                                ui.add(|ui: &mut Ui| {
-                                    let desired_size = ui.available_size();
-                                    let response = ui.allocate_response(desired_size, Sense::all());
-                                    egui_ctx.accesskit_node_builder(response.id, |node| {
-                                        node.set_role(Role::Paragraph);
-                                    });
-                                    response
-                                });
-                            });
-                            response
+                        egui_ctx.accesskit_node_builder(ui.id(), |node| {
+                            node.set_role(Role::Group);
+
+                            let mut child = Node::default();
+                            child.set_role(Role::Switch);
+                            let child_id = dbg!(ui.id().with(1));
+                            // egui_ctx.viewport_mut(|viewport| {
+                            //     viewport.this_pass.accesskit_state.as_mut().unwrap().nodes
+                            //         .insert(child_id, child);
+                            // });
+                            node.push_child(child_id.value().into());
+                            // let _ = dbg!(Backtrace::force_capture());
                         });
                     });
                 },
