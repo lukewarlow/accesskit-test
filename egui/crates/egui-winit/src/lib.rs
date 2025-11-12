@@ -179,11 +179,6 @@ impl State {
         ));
     }
 
-    #[cfg(feature = "accesskit")]
-    pub fn accesskit_mut(&mut self) -> Option<&mut accesskit_winit::Adapter> {
-        self.accesskit.as_mut()
-    }
-
     /// Call this once a graphics context has been created to update the maximum texture dimensions
     /// that egui will use.
     pub fn set_max_texture_side(&mut self, max_texture_side: usize) {
