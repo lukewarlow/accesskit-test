@@ -9,7 +9,7 @@ use std::sync::Arc;
 use std::{backtrace::Backtrace, num::NonZeroU32};
 
 use egui::accesskit::{Node, Role};
-use egui::{Sense, Ui};
+use egui::{Plugin, Sense, Ui};
 use egui_winit::{accesskit_winit, winit};
 use winit::raw_window_handle::HasWindowHandle as _;
 
@@ -193,14 +193,35 @@ impl GlowApp {
     }
 }
 
+struct AccessibilityTreePlugin {
+    adapter: accesskit_multi_tree::Adapter,
+}
+impl AccessibilityTreePlugin {
+    pub fn new(adapter: accesskit_multi_tree::Adapter) -> Self {
+        Self { adapter }
+    }
+}
+impl Plugin for AccessibilityTreePlugin {
+    fn debug_name(&self) -> &'static str {
+        "AccessibilityTreePlugin"
+    }
+    fn output_hook(&mut self, output: &mut egui::FullOutput) {
+        self.adapter.update_if_active(|| output.platform_output.accesskit_update.take().unwrap());
+    }
+}
+
 impl winit::application::ApplicationHandler<UserEvent> for GlowApp {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
         let (gl_window, gl) = create_display(event_loop);
         let gl = std::sync::Arc::new(gl);
-        let mut egui_glow = egui_glow::EguiGlow::new(event_loop, gl.clone(), None, None, true);
-        egui_glow
-            .egui_winit
-            .init_accesskit(event_loop, gl_window.window(), self.proxy.clone());
+        let egui_glow = egui_glow::EguiGlow::new(event_loop, gl.clone(), None, None, true);
+        // egui_glow
+        //     .egui_winit
+        //     .init_accesskit(event_loop, gl_window.window(), self.proxy.clone());
+        let adapter = accesskit_winit::Adapter::with_event_loop_proxy(event_loop, gl_window.window(), self.proxy.clone());
+        let adapter = accesskit_multi_tree::Adapter::new(adapter);
+        let a11y_tree_plugin = AccessibilityTreePlugin::new(adapter);
+        egui_glow.egui_ctx.add_plugin(a11y_tree_plugin);
         gl_window.window().set_visible(true);
 
         let event_loop_proxy = egui::mutex::Mutex::new(self.proxy.clone());

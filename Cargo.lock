@@ -28,6 +28,7 @@ checksum = "cf203f9d3bd8f29f98833d1fbef628df18f759248a547e7e01cfbf63cda36a99"
 name = "accesskit-test"
 version = "0.1.0"
 dependencies = [
+ "accesskit_multi_tree",
  "egui",
  "egui-winit",
  "egui_glow",
@@ -74,6 +75,14 @@ dependencies = [
  "objc2 0.5.2",
  "objc2-app-kit 0.2.2",
  "objc2-foundation 0.2.2",
+]
+
+[[package]]
+name = "accesskit_multi_tree"
+version = "0.1.0"
+dependencies = [
+ "accesskit",
+ "accesskit_winit",
 ]
 
 [[package]]
@@ -716,8 +725,6 @@ dependencies = [
 [[package]]
 name = "egui-winit"
 version = "0.33.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb4ea8cb063c00d8f23ce11279c01eb63a195a72be0e21d429148246dab7983e"
 dependencies = [
  "accesskit_winit",
  "arboard",

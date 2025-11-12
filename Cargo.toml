@@ -1,9 +1,14 @@
+[workspace]
+members = ["accesskit_multi_tree"]
+exclude = ["egui"]
+
 [package]
 name = "accesskit-test"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+accesskit_multi_tree = { version = "0.1.0", path = "accesskit_multi_tree" }
 egui = "0.33.0"
 egui-winit = { version = "0.33.0", features = ["accesskit"] }
 egui_glow = { version = "0.33.0", features = ["winit", "x11"] }
@@ -15,3 +20,4 @@ winit = "0.30.12"
 
 [patch.crates-io]
 egui = { path = "./egui/crates/egui" }
+egui-winit = { path = "./egui/crates/egui-winit" }
