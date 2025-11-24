@@ -5,7 +5,7 @@
 #![allow(clippy::undocumented_unsafe_blocks)]
 #![allow(unsafe_code)]
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::{backtrace::Backtrace, num::NonZeroU32};
 
 use egui::accesskit::{Node, Role};
@@ -194,11 +194,17 @@ impl GlowApp {
 }
 
 struct AccessibilityTreePlugin {
-    adapter: accesskit_multi_tree::Adapter,
+    adapter: Mutex<accesskit_multi_tree::Adapter>,
 }
+
+unsafe impl Send for AccessibilityTreePlugin {}
+unsafe impl Sync for AccessibilityTreePlugin {}
+
 impl AccessibilityTreePlugin {
     pub fn new(adapter: accesskit_multi_tree::Adapter) -> Self {
-        Self { adapter }
+        Self {
+            adapter: Mutex::new(adapter),
+        }
     }
 }
 impl Plugin for AccessibilityTreePlugin {
@@ -207,10 +213,9 @@ impl Plugin for AccessibilityTreePlugin {
     }
     fn output_hook(&mut self, output: &mut egui::FullOutput) {
         if let Some(update) = output.platform_output.accesskit_update.take() {
-            self.adapter.update_if_active(
-                self.adapter.root_subtree_id(),
-                || update,
-            );
+            let mut guard = self.adapter.lock().unwrap();
+            let subtree_id = guard.root_subtree_id();
+            guard.update_if_active(subtree_id, || update);
         }
     }
 }
