@@ -228,8 +228,7 @@ impl winit::application::ApplicationHandler<UserEvent> for GlowApp {
         // egui_glow
         //     .egui_winit
         //     .init_accesskit(event_loop, gl_window.window(), self.proxy.clone());
-        let adapter = accesskit_winit::Adapter::with_event_loop_proxy(event_loop, gl_window.window(), self.proxy.clone());
-        let adapter = accesskit_multi_tree::Adapter::new(adapter);
+        let adapter = accesskit_multi_tree::Adapter::with_event_loop_proxy(event_loop, gl_window.window(), self.proxy.clone());
         let a11y_tree_plugin = AccessibilityTreePlugin::new(adapter);
         egui_glow.egui_ctx.add_plugin(a11y_tree_plugin);
         gl_window.window().set_visible(true);
