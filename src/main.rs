@@ -216,6 +216,7 @@ impl Plugin for AccessibilityTreePlugin {
             let mut guard = self.adapter.lock().unwrap();
             let subtree_id = guard.multi_tree_state.root_subtree_id();
             guard.update_subtree_if_active(subtree_id, || update);
+            // guard.update_if_active(|| update);
         }
     }
 }
