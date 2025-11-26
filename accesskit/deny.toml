@@ -1,0 +1,58 @@
+[graph]
+# Note: running just `cargo deny check` without a `--target` can result in
+# false positives due to https://github.com/EmbarkStudios/cargo-deny/issues/324
+targets = [
+  { triple = "aarch64-apple-darwin" },
+  { triple = "aarch64-linux-android" },
+  { triple = "i686-pc-windows-gnu" },
+  { triple = "i686-pc-windows-msvc" },
+  { triple = "x86_64-pc-windows-gnu" },
+  { triple = "x86_64-pc-windows-msvc" },
+  { triple = "x86_64-unknown-linux-gnu" },
+]
+all-features = true
+
+[advisories]
+db-path = "~/.cargo/advisory-db"
+db-urls = ["https://github.com/rustsec/advisory-db"]
+ignore = []
+
+[licenses]
+allow = [
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "MIT",
+    "Zlib",
+]
+confidence-threshold = 0.8
+exceptions = [
+    { name = "unicode-ident", allow = [
+        "Unicode-DFS-2016",
+    ] },
+]
+
+[bans]
+multiple-versions = "deny"
+wildcards = "deny"
+highlight = "all"
+allow = []
+deny = []
+skip = [
+    "bitflags:<2",
+    "quick-xml:<0.37",
+    "raw-window-handle:<0.6",
+    "windows-sys:<0.59",
+    "windows-targets:<0.52",
+    "windows_i686_gnu:<0.52",
+    "windows_i686_msvc:<0.52",
+    "windows_x86_64_gnu:<0.52",
+    "windows_x86_64_msvc:<0.52",
+]
+skip-tree = []
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
