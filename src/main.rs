@@ -194,14 +194,14 @@ impl GlowApp {
 }
 
 struct AccessibilityTreePlugin {
-    adapter: Mutex<accesskit_multi_tree::Adapter>,
+    adapter: Mutex<accesskit_winit::Adapter>,
 }
 
 unsafe impl Send for AccessibilityTreePlugin {}
 unsafe impl Sync for AccessibilityTreePlugin {}
 
 impl AccessibilityTreePlugin {
-    pub fn new(adapter: accesskit_multi_tree::Adapter) -> Self {
+    pub fn new(adapter: accesskit_winit::Adapter) -> Self {
         Self {
             adapter: Mutex::new(adapter),
         }
@@ -214,8 +214,8 @@ impl Plugin for AccessibilityTreePlugin {
     fn output_hook(&mut self, output: &mut egui::FullOutput) {
         if let Some(update) = output.platform_output.accesskit_update.take() {
             let mut guard = self.adapter.lock().unwrap();
-            let subtree_id = guard.root_subtree_id();
-            guard.update_if_active(subtree_id, || update);
+            let subtree_id = guard.multi_tree_state.root_subtree_id();
+            guard.update_subtree_if_active(subtree_id, || update);
         }
     }
 }
@@ -228,7 +228,7 @@ impl winit::application::ApplicationHandler<UserEvent> for GlowApp {
         // egui_glow
         //     .egui_winit
         //     .init_accesskit(event_loop, gl_window.window(), self.proxy.clone());
-        let adapter = accesskit_multi_tree::Adapter::with_event_loop_proxy(event_loop, gl_window.window(), self.proxy.clone());
+        let adapter = accesskit_winit::Adapter::with_event_loop_proxy(event_loop, gl_window.window(), self.proxy.clone());
         let a11y_tree_plugin = AccessibilityTreePlugin::new(adapter);
         egui_glow.egui_ctx.add_plugin(a11y_tree_plugin);
         gl_window.window().set_visible(true);

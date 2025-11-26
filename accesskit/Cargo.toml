@@ -9,6 +9,7 @@ members = [
     "platforms/unix",
     "platforms/windows",
     "platforms/winit",
+    "platforms/multitree",
 ]
 default-members = [
     "common",
