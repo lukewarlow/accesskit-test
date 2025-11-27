@@ -194,7 +194,7 @@ impl GlowApp {
 }
 
 struct AccessibilityTreePlugin {
-    adapter: Mutex<accesskit_winit::Adapter>,
+    pub adapter: Mutex<accesskit_winit::Adapter>,
 }
 
 unsafe impl Send for AccessibilityTreePlugin {}
@@ -343,6 +343,12 @@ impl winit::application::ApplicationHandler<UserEvent> for GlowApp {
             .as_mut()
             .unwrap()
             .on_window_event(self.gl_window.as_mut().unwrap().window(), &event);
+
+        if let Some(plugin) = self.egui_glow.as_mut().unwrap().egui_ctx.plugin_opt::<AccessibilityTreePlugin>() {
+            let plugin = plugin.lock();
+            let mut guard = plugin.adapter.lock().unwrap();
+            guard.process_event(self.gl_window.as_mut().unwrap().window(), &event)
+        }
 
         if event_response.repaint {
             self.gl_window.as_mut().unwrap().window().request_redraw();
