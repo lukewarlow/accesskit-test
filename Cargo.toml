@@ -9,6 +9,7 @@ edition = "2024"
 [dependencies]
 accesskit = { version = "0.21.1" }
 accesskit_winit = { version = "0.29.2", features = ["multitree"] }
+accesskit_multitree = { version = "0.1.0" }
 egui = { version = "0.33.0", features = ["accesskit"] }
 egui-winit = { version = "0.33.0", features = ["accesskit"] }
 egui_glow = { version = "0.33.0", features = ["winit", "x11"] }
@@ -21,6 +22,7 @@ winit = "0.30.12"
 [patch.crates-io]
 accesskit = { path = "./accesskit/common" }
 accesskit_winit = { path = "./accesskit/platforms/winit" }
+accesskit_multitree = { path = "./accesskit/platforms/multitree" }
 egui = { path = "./egui/crates/egui" }
 egui-winit = { path = "./egui/crates/egui-winit" }
 egui_glow = { path = "./egui/crates/egui_glow" }

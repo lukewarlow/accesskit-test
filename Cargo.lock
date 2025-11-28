@@ -27,6 +27,7 @@ name = "accesskit-test"
 version = "0.1.0"
 dependencies = [
  "accesskit",
+ "accesskit_multitree",
  "accesskit_winit",
  "egui",
  "egui-winit",

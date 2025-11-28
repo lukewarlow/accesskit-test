@@ -12,6 +12,8 @@ use egui::accesskit::{Node, Role};
 use egui::{Plugin, Sense, Ui};
 use egui_winit::{accesskit_winit, winit};
 use winit::raw_window_handle::HasWindowHandle as _;
+use accesskit::{NodeId, Tree, TreeUpdate};
+use accesskit_multitree::{SubtreeId};
 
 /// The majority of `GlutinWindowContext` is taken from `eframe`
 struct GlutinWindowContext {
@@ -226,9 +228,6 @@ impl winit::application::ApplicationHandler<UserEvent> for GlowApp {
         let (gl_window, gl) = create_display(event_loop);
         let gl = std::sync::Arc::new(gl);
         let egui_glow = egui_glow::EguiGlow::new(event_loop, gl.clone(), None, None, true);
-        // egui_glow
-        //     .egui_winit
-        //     .init_accesskit(event_loop, gl_window.window(), self.proxy.clone());
         let adapter = accesskit_winit::Adapter::with_event_loop_proxy(event_loop, gl_window.window(), self.proxy.clone());
         let a11y_tree_plugin = AccessibilityTreePlugin::new(adapter);
         egui_glow.egui_ctx.add_plugin(a11y_tree_plugin);
@@ -254,6 +253,8 @@ impl winit::application::ApplicationHandler<UserEvent> for GlowApp {
         _window_id: winit::window::WindowId,
         event: winit::event::WindowEvent,
     ) {
+        let mut subtree_id: Option<SubtreeId> = None;
+
         let mut redraw = || {
             let mut quit = false;
 
@@ -270,14 +271,38 @@ impl winit::application::ApplicationHandler<UserEvent> for GlowApp {
                     });
 
                     egui::CentralPanel::default().show(egui_ctx, |ui| {
-                        // egui_ctx.accesskit_subtree_builder(ui.id(), |node, accesskit_state| {
-                        //     node.set_role(Role::Group);
-                        //     let mut child = Node::default();
-                        //     child.set_role(Role::Switch);
-                        //     let child_id = ui.id().with(1);
-                        //     accesskit_state.nodes.insert(child_id, child);
-                        //     node.push_child(child_id.value().into());
-                        // });
+                        egui_ctx.accesskit_node_builder(ui.id(), |node| {
+                            // Panics due to this plugin access that we need for the adapter
+                            if let Some(plugin) = egui_ctx.plugin_opt::<AccessibilityTreePlugin>() {
+                                let plugin = plugin.lock();
+                                let mut guard = plugin.adapter.lock().unwrap();
+
+                                let child_nodeid = NodeId(1);
+                                let root_subtree_id = guard.multi_tree_state.root_subtree_id();
+                                if subtree_id.is_none() {
+                                    subtree_id = Some(guard.register_child_subtree(root_subtree_id, ui.id().accesskit_id(), child_nodeid, node));
+                                }
+
+                                let subtree_id = subtree_id.unwrap();
+
+                                let mut child = Node::default();
+                                child.set_role(Role::Switch);
+                                guard.update_subtree_if_active(subtree_id, || {
+                                    let mut nodes = Vec::new();
+                                    nodes.insert(0, (child_nodeid, child));
+                                    TreeUpdate {
+                                        nodes,
+                                        tree: Some(Tree {
+                                            root: child_nodeid,
+                                            toolkit_name: None,
+                                            toolkit_version: None
+                                        }),
+                                        focus: child_nodeid
+                                    }
+                                });
+
+                            }
+                        });
                     });
                 },
             );
