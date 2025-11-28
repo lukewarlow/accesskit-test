@@ -80,7 +80,7 @@ impl Id {
     }
 
     #[cfg(feature = "accesskit")]
-    pub(crate) fn accesskit_id(&self) -> accesskit::NodeId {
+    pub fn accesskit_id(&self) -> accesskit::NodeId {
         self.value().into()
     }
 
