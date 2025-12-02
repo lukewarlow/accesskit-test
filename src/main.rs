@@ -180,6 +180,7 @@ struct GlowApp {
     egui_glow: Option<egui_glow::EguiGlow>,
     repaint_delay: std::time::Duration,
     clear_color: [f32; 3],
+    subtree_id: Option<SubtreeId>
 }
 
 impl GlowApp {
@@ -191,46 +192,50 @@ impl GlowApp {
             egui_glow: None,
             repaint_delay: std::time::Duration::MAX,
             clear_color: [0.1, 0.1, 0.1],
+            subtree_id: None
         }
     }
 }
 
-struct AccessibilityTreePlugin {
-    pub adapter: Mutex<accesskit_winit::Adapter>,
-}
-
-unsafe impl Send for AccessibilityTreePlugin {}
-unsafe impl Sync for AccessibilityTreePlugin {}
-
-impl AccessibilityTreePlugin {
-    pub fn new(adapter: accesskit_winit::Adapter) -> Self {
-        Self {
-            adapter: Mutex::new(adapter),
-        }
-    }
-}
-impl Plugin for AccessibilityTreePlugin {
-    fn debug_name(&self) -> &'static str {
-        "AccessibilityTreePlugin"
-    }
-    fn output_hook(&mut self, output: &mut egui::FullOutput) {
-        if let Some(update) = output.platform_output.accesskit_update.take() {
-            let mut guard = self.adapter.lock().unwrap();
-            let subtree_id = guard.multi_tree_state.root_subtree_id();
-            guard.update_subtree_if_active(subtree_id, || update);
-            // guard.update_if_active(|| update);
-        }
-    }
-}
+// struct AccessibilityTreePlugin {
+//     pub adapter: Mutex<accesskit_winit::Adapter>,
+// }
+//
+// unsafe impl Send for AccessibilityTreePlugin {}
+// unsafe impl Sync for AccessibilityTreePlugin {}
+//
+// impl AccessibilityTreePlugin {
+//     pub fn new(adapter: accesskit_winit::Adapter) -> Self {
+//         Self {
+//             adapter: Mutex::new(adapter),
+//         }
+//     }
+// }
+// impl Plugin for AccessibilityTreePlugin {
+//     fn debug_name(&self) -> &'static str {
+//         "AccessibilityTreePlugin"
+//     }
+//     fn output_hook(&mut self, output: &mut egui::FullOutput) {
+//         if let Some(update) = output.platform_output.accesskit_update.take() {
+//             let mut guard = self.adapter.lock().unwrap();
+//             let subtree_id = guard.multi_tree_state.root_subtree_id();
+//             guard.update_subtree_if_active(subtree_id, || update);
+//             // guard.update_if_active(|| update);
+//         }
+//     }
+// }
 
 impl winit::application::ApplicationHandler<UserEvent> for GlowApp {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
         let (gl_window, gl) = create_display(event_loop);
         let gl = std::sync::Arc::new(gl);
-        let egui_glow = egui_glow::EguiGlow::new(event_loop, gl.clone(), None, None, true);
-        let adapter = accesskit_winit::Adapter::with_event_loop_proxy(event_loop, gl_window.window(), self.proxy.clone());
-        let a11y_tree_plugin = AccessibilityTreePlugin::new(adapter);
-        egui_glow.egui_ctx.add_plugin(a11y_tree_plugin);
+        let mut egui_glow = egui_glow::EguiGlow::new(event_loop, gl.clone(), None, None, true);
+        // let adapter = accesskit_winit::Adapter::with_event_loop_proxy(event_loop, gl_window.window(), self.proxy.clone());
+        // let a11y_tree_plugin = AccessibilityTreePlugin::new(adapter);
+        // egui_glow.egui_ctx.add_plugin(a11y_tree_plugin);
+        egui_glow
+            .egui_winit
+            .init_accesskit(event_loop, gl_window.window(), self.proxy.clone());
         gl_window.window().set_visible(true);
 
         let event_loop_proxy = egui::mutex::Mutex::new(self.proxy.clone());
@@ -253,7 +258,8 @@ impl winit::application::ApplicationHandler<UserEvent> for GlowApp {
         _window_id: winit::window::WindowId,
         event: winit::event::WindowEvent,
     ) {
-        let mut subtree_id: Option<SubtreeId> = None;
+        let mut parent_node: Option<Node> = None;
+        let mut parent_node_id: Option<NodeId> = None;
 
         let mut redraw = || {
             let mut quit = false;
@@ -272,36 +278,9 @@ impl winit::application::ApplicationHandler<UserEvent> for GlowApp {
 
                     egui::CentralPanel::default().show(egui_ctx, |ui| {
                         egui_ctx.accesskit_node_builder(ui.id(), |node| {
-                            // Panics due to this plugin access that we need for the adapter
-                            if let Some(plugin) = egui_ctx.plugin_opt::<AccessibilityTreePlugin>() {
-                                let plugin = plugin.lock();
-                                let mut guard = plugin.adapter.lock().unwrap();
-
-                                let child_nodeid = NodeId(1);
-                                let root_subtree_id = guard.multi_tree_state.root_subtree_id();
-                                if subtree_id.is_none() {
-                                    subtree_id = Some(guard.register_child_subtree(root_subtree_id, ui.id().accesskit_id(), child_nodeid, node));
-                                }
-
-                                let subtree_id = subtree_id.unwrap();
-
-                                let mut child = Node::default();
-                                child.set_role(Role::Switch);
-                                guard.update_subtree_if_active(subtree_id, || {
-                                    let mut nodes = Vec::new();
-                                    nodes.insert(0, (child_nodeid, child));
-                                    TreeUpdate {
-                                        nodes,
-                                        tree: Some(Tree {
-                                            root: child_nodeid,
-                                            toolkit_name: None,
-                                            toolkit_version: None
-                                        }),
-                                        focus: child_nodeid
-                                    }
-                                });
-
-                            }
+                            node.set_role(Role::Group);
+                            parent_node = Some(node.clone());
+                            parent_node_id = Some(ui.id().accesskit_id())
                         });
                     });
                 },
@@ -346,6 +325,44 @@ impl winit::application::ApplicationHandler<UserEvent> for GlowApp {
                 self.gl_window.as_mut().unwrap().swap_buffers().unwrap();
                 self.gl_window.as_mut().unwrap().window().set_visible(true);
             }
+
+            if let Some(glow_app) = self.egui_glow.as_mut() {
+                if let Some(adapter) = glow_app.egui_winit.accesskit.as_mut() {
+                    if let Some(parent_node_id) = parent_node_id {
+                        if let Some(parent_node) = parent_node {
+                            // // Panics due to this plugin access that we need for the adapter
+                            // if let Some(plugin) = egui_ctx.plugin_opt::<AccessibilityTreePlugin>() {
+                            //     let plugin = plugin.lock();
+                            //     let mut guard = plugin.adapter.lock().unwrap();
+
+                            let child_nodeid = NodeId(1);
+                            let root_subtree_id = adapter.multi_tree_state.root_subtree_id();
+                            if self.subtree_id.is_none() {
+                                self.subtree_id = Some(adapter.register_child_subtree(root_subtree_id, parent_node_id, child_nodeid, parent_node));
+                            }
+
+                            let subtree_id = self.subtree_id.unwrap();
+
+                            let mut child = Node::default();
+                            child.set_role(Role::Switch);
+                            adapter.update_subtree_if_active(subtree_id, || {
+                                let mut nodes = Vec::new();
+                                nodes.insert(0, (child_nodeid, child));
+                                TreeUpdate {
+                                    nodes,
+                                    tree: Some(Tree {
+                                        root: child_nodeid,
+                                        toolkit_name: None,
+                                        toolkit_version: None
+                                    }),
+                                    focus: child_nodeid
+                                }
+                            });
+                        }
+                    }
+
+                }
+            }
         };
 
         use winit::event::WindowEvent;
@@ -368,12 +385,6 @@ impl winit::application::ApplicationHandler<UserEvent> for GlowApp {
             .as_mut()
             .unwrap()
             .on_window_event(self.gl_window.as_mut().unwrap().window(), &event);
-
-        if let Some(plugin) = self.egui_glow.as_mut().unwrap().egui_ctx.plugin_opt::<AccessibilityTreePlugin>() {
-            let plugin = plugin.lock();
-            let mut guard = plugin.adapter.lock().unwrap();
-            guard.process_event(self.gl_window.as_mut().unwrap().window(), &event)
-        }
 
         if event_response.repaint {
             self.gl_window.as_mut().unwrap().window().request_redraw();
